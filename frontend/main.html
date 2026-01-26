@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Gerador de Prompt Personalizado</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 20px auto;
+        line-height: 1.5;
+    }
+    h1 {
+        text-align: center;
+    }
+    label {
+        font-weight: bold;
+        display: block;
+        margin-top: 20px;
+    }
+    select {
+        width: 100%;
+        padding: 8px;
+        margin-top: 5px;
+    }
+    button {
+        margin-top: 30px;
+        padding: 12px 20px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+    textarea {
+        width: 100%;
+        height: 250px;
+        margin-top: 20px;
+        padding: 10px;
+        font-family: monospace;
+    }
+</style>
+</head>
+<body>
+
+<h1>Assistente do Assistente - Gerador de Prompt para IA</h1>
+
+<p style="font-size: 0.9em; color: #555;">
+    Não há respostas certas ou erradas. Escolha a opção que melhor representa
+    o que você acha ou gosta para que a IA possa te ajudar da melhor forma possível.
+</p>
+
+<label>Ano do curso de Engenharia de Software</label>
+<select id="ano">
+    <option value="">Selecione...</option>
+    <option data-prompt="ano1">
+        1º ano - ainda estou entendendo como tudo isso se conecta
+    </option>
+    <option data-prompt="ano2">
+        2º ano - já programo um pouco, mas muita coisa ainda parece mágica
+    </option>
+    <option data-prompt="ano3">
+        3º ano - já tenho base teórica, mas a prática ainda dá trabalho
+    </option>
+    <option data-prompt="ano4">
+        4º ano ou mais - já passei por bastante coisa e quero aprofundar
+    </option>
+</select>
+
+<label>Nível de experiência PRÁTICA em programação</label>
+<select id="experiencia">
+    <option value="">Selecione...</option>
+    <option data-prompt="expiniciante">
+        Iniciante — exemplos básicos ainda são difíceis para mim
+    </option>
+    <option data-prompt="expbasico">
+        Básico — já fiz alguns trabalhos, mas ainda dependo bastante de exemplos
+    </option>
+    <option data-prompt="expintermediario">
+        Intermediário — já desenvolvi projetos maiores e geralmente sei o que estou fazendo
+    </option>
+    <option data-prompt="expavancado">
+        Avançado — tenho prática sólida e quero discutir decisões técnicas
+    </option>
+</select>
+
+<label>Qual linguagem de programação você prefere?</label>
+<select id="linguagem">
+    <option value="">Selecione...</option>
+    <option data-prompt="csharp">
+        C#
+    </option>
+    <option data-prompt="java">
+        Java
+    </option>
+    <option data-prompt="nodejs">
+        JavaScript (Node.js)
+    </option>
+    <option data-prompt="python">
+        Python
+    </option>
+</select>
+
+<label>Como está seu conhecimento da teoria?</label>
+<select id="teoria">
+    <option value="">Selecione...</option>
+    <option data-prompt="teoriabaixo">
+        Baixo — ainda estou formando minha base teórica
+    </option>
+    <option data-prompt="teoriamedio">
+        Médio — conheço os principais conceitos, mas nem sempre sei usar bem
+    </option>
+    <option data-prompt="teoriaalto">
+        Alto — compreendo bem a teoria e consigo aplicá-la
+    </option>
+    <option data-prompt="teriafull">
+        Muito alto — gosto de rigor e quero entender tudo a fundo
+    </option>
+</select>
+
+<label>Como você quer que a IA fale com você?</label>
+<select id="personalidade">
+    <option value="">Selecione...</option>
+    <option data-prompt="personaldetail">
+        Quero tudo bem explicadinho.
+    </option>
+    <option data-prompt="personaldirect">
+        Sem rodeios, direto ao ponto!
+    </option>
+    <option data-prompt="personalchallenge">
+        Mostre o que eu ainda não sei!
+    </option>
+    <option data-prompt="personalpartner">
+        Quero alguém para trocar ideias.
+    </option>
+</select>
+
+<label>Em qual contexto você prefere que os exemplos sejam baseados? Essa escolha influencia fortemente como os exemplos serão construídos.</label>
+<select id="contexto">
+    <option value="">Selecione...</option>
+
+    <option data-prompt="contextproduction">
+        Indústria / Montadoras / Processos produtivos
+    </option>
+
+    <option data-prompt="contextagro">
+        Agronegócio
+    </option>
+
+    <option data-prompt="contextlogistics">
+        Logística e cadeia de suprimentos
+    </option>
+
+    <option data-prompt="contextbanking">
+        Setor bancário e financeiro
+    </option>
+
+    <option data-prompt="contexttelecom">
+        Telecomunicações / Telefonia
+    </option>
+
+    <option data-prompt="contexthealth">
+        Saúde e bem-estar
+    </option>
+
+    <option data-prompt="contextgov">
+        Serviço público
+    </option>
+
+    <option data-prompt="contexteduc">
+        Educação e aprendizagem
+    </option>
+
+    <option data-prompt="contextsales">
+        Vendas e comércio
+    </option>
+
+    <option data-prompt="contextsports">
+        Esportes (futebol, etc.)
+    </option>
+
+    <option data-prompt="contextcommon">
+        Cotidiano (organização pessoal, estudos, finanças pessoais, tarefas domésticas, etc.)
+    </option>
+
+    <option data-prompt="contextit">
+        Tecnologia / Software
+    </option>
+
+    <option data-prompt="contextabstract">
+        Abstrato / Conceitual
+    </option>
+</select>
+
+<button onclick="gerarPrompt()">Gerar Prompt</button>
+
+<textarea id="resultado" placeholder="O prompt final aparecerá aqui..."></textarea>
+
+<script>
+async function gerarPrompt() {
+    const selects = document.querySelectorAll("select");
+    let faltando = [];
+    let answers = [];
+
+    selects.forEach(sel => {
+        if (sel.value === "") {
+            const label = sel.previousElementSibling;
+            if (label && label.tagName === "LABEL") {
+                faltando.push(label.innerText);
+            }
+        } else {
+            const opt = sel.options[sel.selectedIndex];
+            if (opt && opt.dataset.prompt) {
+                answers.push(opt.dataset.prompt);
+            }
+        }
+    });
+
+    if (faltando.length > 0) {
+        alert(
+            "Por favor, responda todas as perguntas antes de gerar o prompt.\n\n" +
+            "Faltando:\n- " + faltando.join("\n- ")
+        );
+        return;
+    }
+
+    const response = await fetch("assistente-do-assistente-api-mh.azurewebsites.net/api/process_prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers })
+    });
+
+    const data = await response.json();
+    document.getElementById("resultado").innerText = data.result
+}
+</script>
+
+</body>
+</html>
