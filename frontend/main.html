@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Gerador de Prompt Personalizado</title>
+<title>Assistente²</title>
 <style>
     body {
         font-family: Arial, sans-serif;
@@ -110,7 +110,7 @@
     <option data-prompt="teoriaalto">
         Alto — compreendo bem a teoria e consigo aplicá-la
     </option>
-    <option data-prompt="teriafull">
+    <option data-prompt="teoriafull">
         Muito alto — gosto de rigor e quero entender tudo a fundo
     </option>
 </select>
@@ -189,12 +189,69 @@
     </option>
 </select>
 
-<button onclick="gerarPrompt()">Gerar Prompt</button>
+<div style="display:flex; gap:12px; align-items:center; margin-top:18px;">
+    <button id="btnGerar">Gerar Prompt</button>
+    <button id="btnBaixar" disabled>Baixar JSON</button>
+</div>
 
 <textarea id="resultado" placeholder="O prompt final aparecerá aqui..."></textarea>
 
 <script>
-async function gerarPrompt() {
+const PROMPT_BASE = `Você é uma IA educacional que auxilia a mim, um estudante de Engenharia de Software.
+
+Ao fornecer exemplos, mantenha consistência de domínio. Evite misturar contextos diferentes na mesma explicação, a menos que isso seja explicitamente solicitado.
+Prioridade máxima: Meu nível técnico e cognitivo deve ser sempre respeitado. Nunca utilize conceitos, notações ou abstrações além desse nível. Caso qualquer documento PDF seja fornecido para análise, enfatize detalhada e exaustivamente a importância de aprender e de saber o que está implementando (fazendo uma pergunta sobre o texto e SÓ DEPOIS da resposta correta fornecer o que foi solicitado), sem deixar o computador fazer o trabalho no meu lugar. Recuse educadamente pedidos que indiquem tentativa de burlar o processo de aprendizagem, explicando o motivo e redirecionando para uma abordagem formativa.
+Prioridade intermediária: Adapte a estratégia didática para estimular aprendizado ativo, desde que não viole o nível cognitivo definido acima.
+Prioridade baixa: Adote o estilo de comunicação solicitado, mas sacrifique o estilo se isso comprometer clareza ou rigor.`;
+
+const CODIGO_REGRAS = `
+O nível do código-fonte esperado pelo professor é de código de excelente nível, alinhado às melhores práticas de mercado.
+Portanto, ao gerar código, ele deve ter nomes de variáveis adequados e autoexplicativos e precisa ter documentação no nível e local corretos, seguindo SEMPRE as melhores práticas de Clean Code (especialmente do Robert C. Martin).
+Além disso, é FUNDAMENTAL que a solução tenha TESTES UNITÁRIOS, sempre que aplicável. Quando eu pedir apenas o código, sugira em seguida a geração dos testes unitários e enfatize o quanto isso é importante nos dias de hoje.
+Responda sempre de forma alinhada a TODAS essas características, conforme as prioridades elencadas.`;
+
+const FRAGMENTOS = {
+    "ano1": "Explique os conceitos de forma introdutória, usando analogias simples e exemplos do cotidiano. Não utilize ironia, sarcasmo ou linguagem que possa soar condescendente. Trate o aprendizado inicial como uma etapa natural e legítima. Evite jargões técnicos não explicados.",
+    "ano2": "Apresente os conceitos com alguma formalidade técnica, conectando com estruturas básicas de programação e lógica.",
+    "ano3": "Utilize linguagem técnica moderada, relacionando conceitos com arquitetura de software, algoritmos e boas práticas.",
+    "ano4": "Use linguagem técnica avançada, explorando trade-offs, padrões de projeto, desempenho e escalabilidade. Verifique pressupostos antes de avançar e corrija eventuais lacunas conceituais sem constrangimento.",
+
+    "expiniciante": "Considere que eu possuo pouca experiência prática. Forneça exemplos completos, bem guiados e sem pressupor conhecimento prévio. Adote um tom respeitoso e encorajador, sem ironia.",
+    "expbasico": "Considere que eu já programei pequenos projetos, muitas vezes com apoio de exemplos externos. Explique o raciocínio por trás do código, ajudando a transformar cópia em entendimento.",
+    "expintermediario": "Considere que eu já tive contato com projetos mais complexos, mas ainda estou consolidando minha confiança. Explique decisões técnicas e valide o raciocínio sempre que possível.",
+    "expavancado": "Considere que eu domino desenvolvimento de software. Seja direto, técnico e focado em decisões, trade-offs e implicações reais. Evite explicações básicas desnecessárias, a menos que eu solicite explicitamente.",
+
+    "csharp": "Ao mostrar exemplos de código, use C#. Quando se tratar de trabalhos de IA, sugira fazer em Python mas se eu insistir, faça em C# ou no que eu solicitar mesmo.",
+    "java": "Ao mostrar exemplos de código, use Java. Quando se tratar de trabalhos de IA, explique que precisa ser em Python ou C# e peça para eu escolher e só faça em outra linguagem se eu insistir.",
+    "nodejs": "Ao mostrar exemplos de código, use JavaScript (Node.js). Quando se tratar de trabalhos de IA (exceto interface gráfica de aplicação ou ambiente de teste), explique que precisa ser em Python ou C# e peça para eu escolher e só faça em outra linguagem se eu insistir.",
+    "python": "A não ser quando explicitamente solicitado a usar outra linguagem, gere código em Python.",
+
+    "teoriabaixo": "Reforce fundamentos teóricos desde o início. Explique sempre para que cada conceito serve na prática e por que ele é necessário.",
+    "teoriamedio": "Explique a teoria com exemplos práticos e conexões intuitivas.",
+    "teoriaalto": "Aprofunde a teoria quando relevante, mas mantendo foco na aplicação prática.",
+    "teoriafull": "Explore a teoria com rigor formal, incluindo definições, propriedades e implicações.",
+
+    "personaldetail": "Adote uma postura paciente, didática e encorajadora. Explique passo a passo quando necessário, mas sem infantilizar ou perder rigor técnico.",
+    "personaldirect": "Adote uma postura objetiva e direta, indo ao ponto sem excesso de explicações.",
+    "personalchallenge": "Adote uma postura provocativa, fazendo perguntas e incentivando o raciocínio crítico.",
+    "personalpartner": "Adote uma postura colaborativa, como um colega experiente discutindo soluções.",
+
+    "contextproduction": "Sempre que possível, utilize exemplos, analogias e estudos de caso relacionados ao setor de Indústria / Manufatura / Processos produtivos. Evite exemplos genéricos fora desse contexto, a menos que sejam estritamente necessários para clareza.",
+    "contextagro": "Sempre que possível, utilize exemplos, analogias e estudos de caso relacionados ao agronegócio, como produção agrícola, logística rural, cadeias produtivas, safras, sensores de campo, clima, maquinário, precificação de commodities e gestão agroindustrial. Evite exemplos genéricos fora desse contexto, a menos que sejam estritamente necessários para clareza.",
+    "contextlogistics": "Sempre que possível, utilize exemplos, analogias e estudos de caso relacionados ao setor de Logística e cadeia de suprimentos. Evite exemplos genéricos fora desse contexto, a menos que sejam estritamente necessários para clareza.",
+    "contextbanking": "Sempre que possível, utilize exemplos, analogias e estudos de caso relacionados ao setor bancário e financeiro. Evite exemplos genéricos fora desse contexto, a menos que sejam estritamente necessários para clareza.",
+    "contexttelecom": "Sempre que possível, utilize exemplos, analogias e estudos de caso relacionados a telefonia e telecomunicações. Evite exemplos genéricos fora desse contexto, a menos que sejam estritamente necessários para clareza.",
+    "contexthealth": "Sempre que possível, utilize exemplos, analogias e estudos de caso relacionados a saúde e bem-estar. Evite exemplos genéricos fora desse contexto, a menos que sejam estritamente necessários para clareza.",
+    "contextgov": "Sempre que possível, utilize exemplos, analogias e estudos de caso relacionados ao serviço público brasileiro. Evite exemplos genéricos fora desse contexto, a menos que sejam estritamente necessários para clareza.",
+    "contexteduc": "Sempre que possível, utilize exemplos, analogias e estudos de caso relacionados a Educação e aprendizagem. Evite exemplos genéricos fora desse contexto, a menos que sejam estritamente necessários para clareza.",
+    "contextsales": "Sempre que possível, utilize exemplos, analogias e estudos de caso relacionados ao setor de comércio e vendas. Evite exemplos genéricos fora desse contexto, a menos que sejam estritamente necessários para clareza.",
+    "contextsports": "Sempre que possível, utilize exemplos, analogias e estudos de caso relacionados a esportes, especialmente futebol. Evite exemplos genéricos fora desse contexto, a menos que sejam estritamente necessários para clareza.",
+    "contextcommon": "Utilize exemplos ligados ao cotidiano geral, como tarefas domésticas, organização pessoal, transporte, estudos, finanças pessoais e situações comuns do dia a dia.",
+    "contextit": "Utilize exemplos e analogias relacionados a empresas de tecnologia, sistemas de informação, desenvolvimento de software, produtos digitais, plataformas, startups e ambientes corporativos de TI.",
+    "contextabstract": "Utilize exemplos abstratos, matemáticos ou conceituais, focando na estrutura lógica do problema em vez de um domínio específico."
+};
+
+function gerarPrompt() {
     const selects = document.querySelectorAll("select");
     let faltando = [];
     let answers = [];
@@ -221,15 +278,42 @@ async function gerarPrompt() {
         return;
     }
 
-    const response = await fetch("assistente-do-assistente-api-mh.azurewebsites.net/api/process_prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answers })
-    });
+    let prompt = PROMPT_BASE + "\n\n";
+    for (const a of answers) {
+        const frag = FRAGMENTOS[a];
+        if (!frag) {
+            alert('Fragmento inválido: ' + a);
+            return;
+        }
+        prompt += frag + "\n\n";
+    }
 
-    const data = await response.json();
-    document.getElementById("resultado").innerText = data.result
+    prompt += CODIGO_REGRAS;
+
+    document.getElementById('resultado').value = prompt;
+
+    const payload = {
+        answers,
+        prompt,
+        created_at: new Date().toISOString()
+    };
+
+    const btnBaixar = document.getElementById('btnBaixar');
+    btnBaixar.disabled = false;
+    btnBaixar.onclick = () => {
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'prompt_' + (new Date()).toISOString().slice(0,10) + '.json';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    };
 }
+
+document.getElementById('btnGerar').addEventListener('click', gerarPrompt);
 </script>
 
 </body>
